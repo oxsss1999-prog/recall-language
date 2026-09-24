@@ -2,13 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { counts, local, saveSet } from '../lib/store';
 import { advance, answerOf, newRound, normalize, promptOf } from '../lib/learn';
 import { MasteryBar } from './MasteryBar.jsx';
+import Speak from './Speak.jsx';
+import { chineseVoices, getVoicePref, loadVoices, setVoicePref, speak, stop, supported as ttsSupported } from '../lib/speech';
 
 export default function Learn({ set: initial, uid, go, toast }) {
   // The session works on its own copy of the set and writes progress back after every answer.
   const [set, setSet] = useState(() => structuredClone(initial));
-  const [opts, setOptsState] = useState(() => ({ answerWith: 'def', written: true, ...local.get('recall.learn', {}) }));
+  const [opts, setOptsState] = useState(() => ({ answerWith: 'def', written: true, autoplay: true, rate: 0.9, ...local.get('recall.learn', {}) }));
   const [s, setS] = useState(() => advance(newRound(initial.cards, 0), initial.cards, opts));
   const [draft, setDraft] = useState('');
+  const [zhVoices, setZhVoices] = useState([]);
+  const [voicePref, setVoicePrefState] = useState(getVoicePref);
+  useEffect(() => { loadVoices().then(() => setZhVoices(chineseVoices())); }, []);
 
   const cards = set.cards;
   const card = s.q ? cards.find(k => k.id === s.q.cardId) : null;
@@ -44,8 +49,14 @@ export default function Learn({ set: initial, uid, go, toast }) {
     setOptsState(o);
     local.set('recall.learn', o);
     // Re-ask the current question in the new format.
-    if (s.phase === 'q') setS(advance({ ...s, queue: [s.q.cardId, ...s.queue] }, cards, o));
+    if (s.phase === 'q' && ('answerWith' in patch || 'written' in patch)) setS(advance({ ...s, queue: [s.q.cardId, ...s.queue] }, cards, o));
   };
+
+  // Read the prompt aloud when a new question appears.
+  useEffect(() => {
+    if (s.phase === 'q' && card && opts.autoplay) speak(promptOf(card, opts.answerWith), { rate: opts.rate });
+  }, [s.q]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => stop, []);
 
   // Auto-advance after a correct answer.
   useEffect(() => {
@@ -56,11 +67,14 @@ export default function Learn({ set: initial, uid, go, toast }) {
 
   // Keyboard: 1–4 picks an option, Enter/Space skips the correct-answer pause.
   const live = useRef();
-  live.current = { s, card, grade, next };
+  live.current = { s, card, grade, next, opts };
   useEffect(() => {
     const onKey = e => {
       const { s, card, grade, next } = live.current;
       if (e.target.matches('input, textarea, select')) return;
+      if ((e.key === 's' || e.key === 'S') && card && (s.phase === 'q' || s.phase === 'fb')) {
+        e.preventDefault(); speak(promptOf(card, live.current.opts.answerWith), { rate: live.current.opts.rate }); return;
+      }
       if (s.phase === 'q' && s.q.type === 'mc' && /^[1-4]$/.test(e.key)) {
         const o = s.q.options[+e.key - 1];
         if (o !== undefined) { e.preventDefault(); grade(normalize(o) === normalize(answerOf(card, opts.answerWith)), o); }
@@ -87,6 +101,32 @@ export default function Learn({ set: initial, uid, go, toast }) {
       <label className="switch">
         <input type="checkbox" checked={opts.written} onChange={e => setOpts({ written: e.target.checked })} /> Written questions
       </label>
+      {ttsSupported && (
+        <>
+          <label className="switch">
+            <input type="checkbox" checked={opts.autoplay} onChange={e => setOpts({ autoplay: e.target.checked })} /> Auto-play audio
+          </label>
+          {zhVoices.length > 1 && (
+            <label>Voice{' '}
+              <select value={voicePref || zhVoices[0].name} onChange={e => {
+                setVoicePref(e.target.value); setVoicePrefState(e.target.value);
+                if (card) speak(promptOf(card, opts.answerWith), { rate: opts.rate, voice: e.target.value });
+              }}>
+                {zhVoices.map(v => <option key={v.voiceURI} value={v.name}>{v.name}</option>)}
+              </select>
+            </label>
+          )}
+          <label>Speed{' '}
+            <select value={opts.rate} onChange={e => setOpts({ rate: +e.target.value })}>
+              <option value={0.6}>0.6×</option>
+              <option value={0.75}>0.75×</option>
+              <option value={0.9}>0.9×</option>
+              <option value={1}>1×</option>
+              <option value={1.2}>1.2×</option>
+            </select>
+          </label>
+        </>
+      )}
     </div>
   );
 
@@ -133,7 +173,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
                 return k && (
                   <div key={i}>
                     <i style={{ color: x.correct ? 'var(--good)' : 'var(--bad)' }}>{x.correct ? '✓' : '✗'}</i>
-                    <b>{k.term}</b><span>{k.def}</span>
+                    <b className="with-speak">{k.term}<Speak text={k.term} rate={opts.rate} size="sm" /></b><span>{k.def}</span>
                   </div>
                 );
               })}
@@ -171,7 +211,10 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
           <span>{opts.answerWith === 'def' ? 'Term' : 'Definition'}</span>
           <span className="qtag">{q.type === 'mc' ? 'Multiple choice' : 'Written'}</span>
         </div>
-        <div className="prompt">{promptOf(card, opts.answerWith) || <em>(blank)</em>}</div>
+        <div className="prompt-row">
+          <div className="prompt">{promptOf(card, opts.answerWith) || <em>(blank)</em>}</div>
+          <Speak text={promptOf(card, opts.answerWith)} rate={opts.rate} size="lg" />
+        </div>
 
         {q.type === 'mc' && (
           <div className="opts">
@@ -206,7 +249,8 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
             <div className="fb bad">
               <span className="h">{q.given ? 'Not quite.' : 'Here’s the answer.'}</span>
               {q.type === 'written' && q.given && <><small>You wrote</small><span className="ans">{q.given}</span></>}
-              <small>Correct answer</small><span className="ans">{right}</span>
+              <small>Correct answer</small>
+              <span className="ans ans-row">{right}<Speak text={right} rate={opts.rate} size="sm" /></span>
             </div>
             <div className="row between" style={{ marginTop: 14 }}>
               {q.type === 'written' && q.given ? <button className="btn ghost" type="button" onClick={override}>I was right</button> : <span />}
@@ -218,7 +262,7 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
       <div className="lfoot">
         {settings}
         <span className="hint">
-          {q.type === 'mc' && !fb ? <>Keys <kbd>1</kbd>–<kbd>4</kbd> to answer</> : fb && !q.correct ? <><kbd>Enter</kbd> to continue</> : null}
+          {q.type === 'mc' && !fb ? <>Keys <kbd>1</kbd>–<kbd>4</kbd> to answer · <kbd>S</kbd> to listen</> : fb && !q.correct ? <><kbd>Enter</kbd> to continue</> : null}
         </span>
       </div>
     </>

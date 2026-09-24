@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, configured, googleProvider } from './firebase';
 import { useSets } from './lib/store';
+import { MISSING_ZH_HELP, onMissingVoice } from './lib/speech';
 import Library from './components/Library.jsx';
 import SetView from './components/SetView.jsx';
 import Import from './components/Import.jsx';
@@ -31,12 +32,13 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimer = useRef();
 
-  const toast = useCallback(msg => {
+  const toast = useCallback((msg, ms = 3200) => {
     setToastMsg(msg);
     clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastMsg(null), 3200);
+    toastTimer.current = setTimeout(() => setToastMsg(null), ms);
   }, []);
 
+  useEffect(() => onMissingVoice(() => toast(MISSING_ZH_HELP, 12000)), [toast]);
   useEffect(() => (auth ? onAuthStateChanged(auth, u => setUser(u)) : setUser(null)), []);
 
   if (!configured) return <Shell><SetupNeeded /></Shell>;

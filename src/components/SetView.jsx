@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { counts, deleteSet, newCardId, saveSet } from '../lib/store';
 import { Legend, MasteryBar } from './MasteryBar.jsx';
+import Speak from './Speak.jsx';
 
 const LEVEL = ['Not studied', 'Learning', 'Mastered'];
 const LEVEL_COLOR = ['var(--new)', 'var(--mark)', 'var(--accent)'];
@@ -82,8 +83,11 @@ export default function SetView({ set, uid, go, toast }) {
               autoFocus={k.id === focusId} onCommit={v => updateCard(k.id, { term: v })} />
             <AutoText className="def" label={`Definition ${i + 1}`} value={k.def}
               onCommit={v => updateCard(k.id, { def: v })} />
+            <div className="card-actions">
+            <Speak text={k.term} size="sm" label={`Play term ${i + 1}`} />
             <button className="del" type="button" aria-label={`Delete card ${i + 1}`} title="Delete card"
               onClick={() => save({ ...set, cards: set.cards.filter(x => x.id !== k.id) })}>×</button>
+            </div>
           </div>
         ))}
       </div>

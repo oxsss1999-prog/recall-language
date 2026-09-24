@@ -158,3 +158,19 @@ code{font-family:var(--mono);font-size:.9em}
   .qcard{animation:rise .22s ease-out}
   @keyframes rise{from{transform:translateY(6px);opacity:.6}to{transform:none;opacity:1}}
 }
+
+/* pronunciation */
+.speak{flex:none;display:inline-grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--accent);border-radius:99px;cursor:pointer;padding:0}
+.speak.lg{width:44px;height:44px}
+.speak.md{width:36px;height:36px}
+.speak.sm{width:28px;height:28px;border-color:transparent;background:none}
+.speak.sm svg{width:16px;height:16px}
+.speak:hover{border-color:var(--accent);background:var(--accent-soft)}
+.speak.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.prompt-row{display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.prompt-row .prompt{flex:1;min-width:0}
+.prompt-row .speak{margin-top:18px}
+.ans-row{display:flex;gap:8px;align-items:flex-start}
+.with-speak{display:flex;gap:4px;align-items:flex-start}
+.card-actions{display:flex;gap:2px;align-items:center}
+@media (max-width:560px){.card .card-actions{grid-row:1;grid-column:3}}
