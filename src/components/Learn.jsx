@@ -72,6 +72,8 @@ export default function Learn({ set: initial, uid, go, toast }) {
     const onKey = e => {
       const { s, card, grade, next } = live.current;
       if (e.target.matches('input, textarea, select')) return;
+      // Leave browser/OS shortcuts alone (Cmd+1 tab switching, Ctrl+S, etc.).
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if ((e.key === 's' || e.key === 'S') && card && (s.phase === 'q' || s.phase === 'fb')) {
         e.preventDefault(); speak(promptOf(card, live.current.opts.answerWith), { rate: live.current.opts.rate }); return;
       }
