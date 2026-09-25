@@ -1,9 +1,46 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each signed-in user can read and write only their own sets.
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
     }
+
+    // Shape of a study set. Blocks junk fields and oversized documents
+    // (Firestore's own hard cap is 1 MiB per document).
+    function validSet(d) {
+      return d.keys().hasOnly(['title', 'cards', 'created', 'updated'])
+        && d.keys().hasAll(['title', 'cards', 'updated'])
+        && d.title is string && d.title.size() <= 200
+        && d.cards is list && d.cards.size() <= 3000
+        && d.updated is number
+        && (!('created' in d) || d.created is number);
+    }
+
+    // Each signed-in user can read and write only their own sets.
+    match /users/{uid}/sets/{setId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validSet(request.resource.data);
+    }
+
+    function validStats(d) {
+      return d.keys().hasOnly(['xp', 'today', 'todayXp', 'goal', 'streak', 'lastGoalDay', 'bestCombo', 'updated'])
+        && d.xp is number && d.xp >= 0
+        && d.todayXp is number && d.todayXp >= 0
+        && d.goal is number && d.goal > 0 && d.goal <= 1000
+        && d.streak is number && d.streak >= 0
+        && d.bestCombo is number && d.bestCombo >= 0
+        && d.today is string && d.today.size() <= 10
+        && d.lastGoalDay is string && d.lastGoalDay.size() <= 10
+        && d.updated is number;
+    }
+
+    // XP, streak and daily goal: one document per user.
+    match /users/{uid}/meta/stats {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validStats(request.resource.data);
+    }
+
+    // Everything else is closed.
   }
 }

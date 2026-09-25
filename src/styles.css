@@ -174,3 +174,71 @@ code{font-family:var(--mono);font-size:.9em}
 .with-speak{display:flex;gap:4px;align-items:flex-start}
 .card-actions{display:flex;gap:2px;align-items:center}
 @media (max-width:560px){.card .card-actions{grid-row:1;grid-column:3}}
+
+/* account / privacy */
+.linkish{background:none;border:0;padding:0;cursor:pointer;color:inherit;font:inherit}
+.linkish:hover{color:var(--ink);text-decoration:underline}
+.linkish.inline{color:var(--accent);text-decoration:underline}
+.foot{display:flex;gap:18px;flex-wrap:wrap;margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.doc{max-width:65ch}
+.doc h2{margin-top:28px;margin-bottom:6px;font-size:16px}
+.doc p,.doc li{color:var(--ink);line-height:1.7}
+.doc ul{padding-left:20px}
+.mono-sel{font-family:var(--mono);user-select:all}
+.btn.danger:not(.ghost){border-color:var(--bad)}
+
+/* ---------- game layer ---------- */
+.flame{display:inline-block;vertical-align:-2px}
+.lhead-right{display:flex;align-items:center;gap:12px}
+.combo{display:inline-flex;align-items:center;gap:5px;font:600 12px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:5px 9px;border-radius:99px;background:var(--mark-soft);color:var(--ink);font-variant-numeric:tabular-nums}
+.combo.warm{background:var(--mark);color:#241A00}
+.combo.hot{background:linear-gradient(90deg,var(--mark),var(--bad));color:#fff}
+.bar span{transition:width .55s cubic-bezier(.2,.8,.2,1)}
+.qcard{position:relative}
+.xp-float{position:absolute;right:24px;top:18px;font:700 18px/1 var(--display);color:var(--good);pointer-events:none}
+.stats{display:grid;grid-template-columns:auto 1fr auto;gap:10px;margin-top:20px}
+@media (max-width:560px){.stats{grid-template-columns:1fr 1fr}.stats .goal{grid-column:1/-1;grid-row:1}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;align-items:center;gap:12px}
+.stat b{display:block;font:700 22px/1 var(--display);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.streak:not(.on) .flame{filter:grayscale(1);opacity:.45}
+.stat.goal{flex-direction:column;align-items:stretch;gap:8px}
+.goal-top{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.goal-top b{display:inline;font:600 14px var(--body);color:var(--ink)}
+.goal-bar{height:10px;border-radius:99px;background:var(--bg);overflow:hidden}
+.goal-bar span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--mark),var(--accent));transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.stat .linkish.hint{align-self:flex-start;font-size:12px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.tile-n{font:700 26px/1 var(--display);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:4px}
+.tile.xp .tile-n{color:var(--good)}
+.tile-l{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.celebrate{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 55%,transparent);border:0;padding:16px;cursor:pointer;backdrop-filter:blur(2px)}
+.celebrate-card{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px 40px;box-shadow:0 20px 60px rgba(0,0,0,.25);max-width:100%}
+.celebrate-n{font:700 84px/1 var(--display);letter-spacing:-.04em;background:linear-gradient(135deg,var(--mark),var(--bad));-webkit-background-clip:text;background-clip:text;color:transparent}
+.celebrate-title{font:700 26px/1.1 var(--display)}
+.celebrate-sub{color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){
+  .qcard.hit{animation:hit .45s ease-out}
+  .qcard.miss{animation:shake .4s ease-in-out}
+  .opt.right{animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+  .opt.wrong{animation:shake .35s ease-in-out}
+  .xp-float{animation:float-up 1s ease-out forwards}
+  .combo{animation:bump .3s cubic-bezier(.3,1.8,.5,1)}
+  .celebrate-card{animation:burst .5s cubic-bezier(.2,1.6,.4,1)}
+  .celebrate-n,.celebrate-flame{animation:throb 1s ease-in-out .5s infinite}
+  .celebrate-flame{display:inline-block}
+  .stat.streak.on .flame{animation:flicker 2.4s ease-in-out infinite}
+  .summary-card .tile{animation:rise-in .4s ease-out both}
+  .summary-card .tile:nth-child(2){animation-delay:.08s}
+  .summary-card .tile:nth-child(3){animation-delay:.16s}
+  @keyframes hit{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 55%,transparent)}100%{box-shadow:0 0 0 14px transparent}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+  @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.045)}100%{transform:scale(1)}}
+  @keyframes float-up{0%{opacity:0;transform:translateY(8px) scale(.8)}20%{opacity:1;transform:translateY(0) scale(1.1)}100%{opacity:0;transform:translateY(-28px) scale(1)}}
+  @keyframes bump{0%{transform:scale(.7)}100%{transform:scale(1)}}
+  @keyframes burst{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
+  @keyframes throb{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  @keyframes flicker{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.08) rotate(-3deg)}}
+  @keyframes rise-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+}

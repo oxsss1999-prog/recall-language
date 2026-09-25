@@ -1,7 +1,10 @@
 import { counts } from '../lib/store';
 import { MasteryBar } from './MasteryBar.jsx';
+import { useStats } from '../lib/stats';
+import { Flame } from './Flame.jsx';
 
-export default function Library({ sets, go }) {
+export default function Library({ sets, go, uid }) {
+  const stats = useStats(uid);
   const list = Object.values(sets).sort((a, b) => (b.updated || 0) - (a.updated || 0));
   return (
     <>
@@ -16,6 +19,8 @@ export default function Library({ sets, go }) {
         </div>
         <button className="btn primary" type="button" onClick={() => go('import')}>New set</button>
       </div>
+
+      <StatsStrip stats={stats} go={go} />
 
       {list.length ? (
         <div className="sets">
@@ -37,5 +42,28 @@ export default function Library({ sets, go }) {
         </div>
       )}
     </>
+  );
+}
+
+function StatsStrip({ stats, go }) {
+  const pct = Math.min(100, Math.round((stats.todayXp / stats.goal) * 100));
+  return (
+    <div className="stats">
+      <div className={`stat streak ${stats.streak ? 'on' : ''}`}>
+        <Flame size={26} />
+        <div><b>{stats.streak}</b><span>day streak</span></div>
+      </div>
+      <div className="stat goal">
+        <div className="goal-top">
+          <span>Today</span>
+          <span><b>{stats.todayXp}</b> / {stats.goal} XP{stats.doneToday ? ' · goal done' : ''}</span>
+        </div>
+        <div className="goal-bar"><span style={{ width: `${pct}%` }} /></div>
+        <button type="button" className="linkish hint" onClick={() => go('account')}>Change daily goal</button>
+      </div>
+      <div className="stat total">
+        <div><b>{stats.xp.toLocaleString()}</b><span>total XP</span></div>
+      </div>
+    </div>
   );
 }
