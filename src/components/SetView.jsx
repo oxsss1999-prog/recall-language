@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { counts, deleteSet, newCardId, saveSet } from '../lib/store';
 import { Legend, MasteryBar } from './MasteryBar.jsx';
 import Speak from './Speak.jsx';
+import StudyOptions from './StudyOptions.jsx';
+import { local } from '../lib/store';
 
 const LEVEL = ['Not studied', 'Learning', 'Mastered'];
 const LEVEL_COLOR = ['var(--new)', 'var(--mark)', 'var(--accent)'];
@@ -28,14 +30,22 @@ function AutoText({ value, onCommit, className, label, autoFocus }) {
 export default function SetView({ set, uid, go, toast }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [focusId, setFocusId] = useState(null);
+  const [choosing, setChoosing] = useState(false);
   const c = counts(set);
   const allMastered = set.cards.length > 0 && c[2] === set.cards.length;
 
   const save = next => saveSet(uid, next).catch(e => toast(`Couldn’t save: ${e.message}`));
   const updateCard = (id, patch) => save({ ...set, cards: set.cards.map(k => (k.id === id ? { ...k, ...patch } : k)) });
 
-  const learn = () => {
-    if (allMastered) save({ ...set, cards: set.cards.map(k => ({ ...k, s: 0 })) });
+  const learn = cfg => {
+    // If everything chosen is already mastered, start that selection fresh.
+    const ids = cfg.ids ? new Set(cfg.ids) : null;
+    const inScope = k => !ids || ids.has(k.id);
+    const chosen = set.cards.filter(inScope);
+    if (chosen.length && chosen.every(k => k.s === 2)) {
+      save({ ...set, cards: set.cards.map(k => (inScope(k) ? { ...k, s: 0 } : k)) });
+    }
+    local.set(`recall.session.${set.id}`, cfg);
     go('learn', set.id);
   };
 
@@ -54,7 +64,7 @@ export default function SetView({ set, uid, go, toast }) {
         />
         <div><MasteryBar set={set} /><Legend set={set} /></div>
         <div className="row">
-          <button className="btn primary big" type="button" disabled={!set.cards.length} onClick={learn}>
+          <button className="btn primary big" type="button" disabled={!set.cards.length} onClick={() => setChoosing(v => !v)}>
             {allMastered ? 'Learn again' : c[1] + c[2] ? 'Continue learning' : 'Learn'}
           </button>
           <button className="btn" type="button" onClick={() => go('import', set.id)}>Import more</button>
@@ -64,6 +74,7 @@ export default function SetView({ set, uid, go, toast }) {
           </button>
           <button className="btn ghost danger" type="button" onClick={() => setConfirmDelete(true)}>Delete set</button>
         </div>
+        {choosing && <StudyOptions set={set} onStart={learn} onCancel={() => setChoosing(false)} />}
         {confirmDelete && (
           <div className="confirm">
             <span>Delete “{set.title || 'Untitled set'}” and its {set.cards.length} cards? This can’t be undone.</span>

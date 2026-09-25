@@ -8,6 +8,8 @@ import * as sfx from '../lib/sfx';
 import { confetti } from '../lib/confetti';
 import { addXp } from '../lib/stats';
 import { Flame } from './Flame.jsx';
+import SettingsPanel from './SettingsPanel.jsx';
+import { actionFor, keyLabel, usePrefs } from '../lib/prefs';
 
 /* ---------- game tuning ---------- */
 const XP_BASE = 10;
@@ -25,11 +27,16 @@ export default function Learn({ set: initial, uid, go, toast }) {
   // The session works on its own copy of the set and writes progress back after every answer.
   const [set, setSet] = useState(() => structuredClone(initial));
   const [opts, setOptsState] = useState(() => ({ answerWith: 'def', written: true, autoplay: true, rate: 0.9, sound: true, ...local.get('recall.learn', {}) }));
-  const [s, setS] = useState(() => advance(newRound(initial.cards, 0), initial.cards, opts));
+  // Study options chosen on the set page (partial set, shuffle, round size).
+  const [cfg] = useState(() => local.get(`recall.session.${initial.id}`, {}));
+  const [s, setS] = useState(() => advance(newRound(initial.cards, 0, cfg), initial.cards, opts));
   const [draft, setDraft] = useState('');
   const [zhVoices, setZhVoices] = useState([]);
   const [voicePref, setVoicePrefState] = useState(getVoicePref);
   useEffect(() => { loadVoices().then(() => setZhVoices(chineseVoices())); }, []);
+
+  const prefs = usePrefs();
+  const [showSettings, setShowSettings] = useState(false);
 
   // Game state
   const [combo, setCombo] = useState(0);
@@ -40,7 +47,9 @@ export default function Learn({ set: initial, uid, go, toast }) {
 
   const cards = set.cards;
   const card = s.q ? cards.find(k => k.id === s.q.cardId) : null;
-  const c = counts(set);
+  const scope = cfg.ids ? cards.filter(k => cfg.ids.includes(k.id)) : cards;
+  const scopeSet = { ...set, cards: scope };
+  const c = counts(scopeSet);
 
   const persist = next => {
     setSet(next);
@@ -53,7 +62,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
   };
 
   const next = (state = s, cs = cards) => { setDraft(''); setCelebrate(null); setS(advance(state, cs, opts)); };
-  const nextRound = (cs = cards, round = s.round) => { setDraft(''); setCelebrate(null); setS(advance(newRound(cs, round), cs, opts)); };
+  const nextRound = (cs = cards, round = s.round) => { setDraft(''); setCelebrate(null); setS(advance(newRound(cs, round, cfg), cs, opts)); };
 
   const reward = (newCombo) => {
     const gain = XP_BASE + (newCombo >= 5 ? XP_COMBO_BONUS : 0);
@@ -158,23 +167,36 @@ export default function Learn({ set: initial, uid, go, toast }) {
     return () => clearTimeout(t);
   }, [s, celebrate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keyboard: 1–4 picks an option, Enter/Space skips the correct-answer pause.
+  // Keyboard shortcuts (customizable in Study settings).
   const live = useRef();
-  live.current = { s, card, grade, next, opts };
+  live.current = { s, card, grade, next, opts, nextRound, showSettings };
   useEffect(() => {
     const onKey = e => {
-      const { s, card, grade, next, opts } = live.current;
+      const { s, card, grade, next, opts, nextRound, showSettings } = live.current;
+      if (showSettings) return;
       if (e.target.matches('input, textarea, select')) return;
       // Leave browser/OS shortcuts alone (Cmd+1 tab switching, Ctrl+S, etc.).
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if ((e.key === 's' || e.key === 'S') && card && (s.phase === 'q' || s.phase === 'fb')) {
+      const action = actionFor(e.key);
+      if (!action) return;
+      const inQuestion = s.phase === 'q' || s.phase === 'fb';
+
+      if (action === 'listen' && card && inQuestion) {
         e.preventDefault(); speak(promptOf(card, opts.answerWith), { rate: opts.rate }); return;
       }
-      if (s.phase === 'q' && s.q.type === 'mc' && /^[1-4]$/.test(e.key)) {
-        const o = s.q.options[+e.key - 1];
-        if (o !== undefined) { e.preventDefault(); grade(normalize(o) === normalize(answerOf(card, opts.answerWith)), o); }
-      } else if (s.phase === 'fb' && s.q.correct && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault(); next();
+      if (s.phase === 'q' && s.q.type === 'mc') {
+        const idx = ['opt1', 'opt2', 'opt3', 'opt4'].indexOf(action);
+        if (idx >= 0 && s.q.options[idx] !== undefined) {
+          e.preventDefault();
+          const o = s.q.options[idx];
+          grade(normalize(o) === normalize(answerOf(card, opts.answerWith)), o);
+          return;
+        }
+        if (action === 'dontKnow') { e.preventDefault(); grade(false, ''); return; }
+      }
+      if (action === 'next') {
+        if (s.phase === 'fb') { e.preventDefault(); next(); }
+        else if (s.phase === 'summary') { e.preventDefault(); nextRound(); }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -187,6 +209,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
 
   const settings = (
     <div className="opts-panel">
+      <button type="button" className="btn small" onClick={() => setShowSettings(true)}>⚙ Keys & volume</button>
       <label>Answer with{' '}
         <select value={opts.answerWith} onChange={e => setOpts({ answerWith: e.target.value })}>
           <option value="def">Definition</option>
@@ -242,10 +265,12 @@ export default function Learn({ set: initial, uid, go, toast }) {
               <Flame size={14} /> {combo} in a row
             </span>
           )}
-          <span className="lmeta">{c[2]}/{cards.length} mastered</span>
+          <span className="lmeta">{c[2]}/{scope.length} mastered{cfg.ids ? ` · ${scope.length} of ${cards.length} cards` : ''}{cfg.shuffle ? ' · shuffled' : ''}</span>
         </span>
       </div>
-      <MasteryBar set={set} />
+      <MasteryBar set={scopeSet} />
+
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} sample={card ? promptOf(card, opts.answerWith) : '你好'} />}
 
       {celebrate && (
         <button type="button" className="celebrate" onClick={() => setCelebrate(null)} aria-live="polite">
@@ -259,12 +284,13 @@ export default function Learn({ set: initial, uid, go, toast }) {
 
       {s.phase === 'done' && (
         <div className="qcard stack">
-          <div className="big-num">{cards.length}/{cards.length}</div>
-          <h2>Every card in this set is mastered.</h2>
+          <div className="big-num">{scope.length}/{scope.length}</div>
+          <h2>{cfg.ids ? 'Every card in this selection is mastered.' : 'Every card in this set is mastered.'}</h2>
           <p className="lede" style={{ margin: 0 }}>Come back tomorrow and run it again — recall that survives a night’s sleep is the kind that sticks.</p>
           <div className="row">
             <button className="btn primary" type="button" onClick={() => {
-              const reset = { ...set, cards: set.cards.map(k => ({ ...k, s: 0 })) };
+              const inScope = new Set(scope.map(k => k.id));
+              const reset = { ...set, cards: set.cards.map(k => (inScope.has(k.id) ? { ...k, s: 0 } : k)) };
               persist(reset);
               nextRound(reset.cards, 0);
             }}>Start over</button>
@@ -279,7 +305,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
             <div className="row between">
               <div>
                 <h2>{roundRight === s.log.length ? 'Perfect round!' : `Round ${s.round} done`}</h2>
-                <p className="lede">{c[2]} of {cards.length} cards mastered</p>
+                <p className="lede">{c[2]} of {scope.length} cards mastered</p>
               </div>
               <button className="btn primary big" type="button" autoFocus onClick={() => nextRound()}>Continue</button>
             </div>
@@ -300,7 +326,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
               })}
             </div>
           </div>
-          <div className="lfoot">{settings}<span className="hint">Press <kbd>Enter</kbd> to continue</span></div>
+          <div className="lfoot">{settings}<span className="hint">Press <kbd>{keyLabel(prefs.keys.next)}</kbd> to continue</span></div>
         </>
       )}
 
@@ -310,7 +336,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
           q={s.q} card={card} opts={opts} fb={s.phase === 'fb'}
           draft={draft} setDraft={setDraft}
           grade={grade} next={() => next()} override={override}
-          settings={settings}
+          settings={settings} keys={prefs.keys}
         />
       )}
     </>
@@ -336,7 +362,7 @@ function CountUp({ to, ms = 700 }) {
 
 const PRAISE = ['Correct!', 'Nice!', 'Great!', 'Nailed it!', 'Exactly!'];
 
-function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, settings }) {
+function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, settings, keys }) {
   const right = answerOf(card, opts.answerWith);
   const [praise] = useState(() => PRAISE[(Math.random() * PRAISE.length) | 0]);
   const submit = e => {
@@ -365,7 +391,7 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
               return (
                 <button key={i} type="button" className={`opt ${cls}`} disabled={fb}
                   onClick={() => grade(normalize(o) === normalize(right), o)}>
-                  <span className="k">{i + 1}</span><span>{o || <em>(blank)</em>}</span>
+                  <span className="k">{keyLabel(keys[`opt${i + 1}`] || String(i + 1))}</span><span>{o || <em>(blank)</em>}</span>
                 </button>
               );
             })}
@@ -406,7 +432,9 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
       <div className="lfoot">
         {settings}
         <span className="hint">
-          {q.type === 'mc' && !fb ? <>Keys <kbd>1</kbd>–<kbd>4</kbd> to answer · <kbd>S</kbd> to listen</> : fb && !q.correct ? <><kbd>Enter</kbd> to continue</> : null}
+          {q.type === 'mc' && !fb
+            ? <><kbd>{keyLabel(keys.opt1)}</kbd><kbd>{keyLabel(keys.opt2)}</kbd><kbd>{keyLabel(keys.opt3)}</kbd><kbd>{keyLabel(keys.opt4)}</kbd> answer · <kbd>{keyLabel(keys.listen)}</kbd> listen · <kbd>{keyLabel(keys.dontKnow)}</kbd> don’t know</>
+            : fb ? <><kbd>{keyLabel(keys.next)}</kbd> continue</> : null}
         </span>
       </div>
     </>

@@ -1,3 +1,4 @@
+import { getPrefs } from './prefs';
 /*
  * Text-to-speech with the browser's built-in voices (Web Speech API).
  *
@@ -110,6 +111,7 @@ export async function speak(text, { rate = 1, voice: voiceName = getVoicePref(),
   u.voice = voice;
   u.lang = voice.lang;
   u.rate = rate;
+  u.volume = getPrefs().voiceVolume;
   if (onEnd) { u.onend = onEnd; u.onerror = onEnd; }
   synth.speak(u);
   return true;

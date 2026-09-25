@@ -2,6 +2,8 @@
  * Game sound effects, synthesized with the Web Audio API.
  * No audio files to host or load; every sound is a few oscillators.
  */
+import { getPrefs } from './prefs';
+
 let ctx = null;
 
 function ac() {
@@ -17,6 +19,9 @@ function ac() {
 function note(freq, t, dur, { type = 'sine', gain = 0.16, slideTo } = {}) {
   const a = ac();
   if (!a) return;
+  const vol = getPrefs().sfxVolume;
+  if (vol <= 0) return;
+  gain *= vol;
   const start = a.currentTime + t;
   const osc = a.createOscillator();
   const g = a.createGain();

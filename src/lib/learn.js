@@ -28,10 +28,17 @@ export const normalize = s =>
 export const promptOf = (card, answerWith) => (answerWith === 'def' ? card.term : card.def);
 export const answerOf = (card, answerWith) => (answerWith === 'def' ? card.def : card.term);
 
-export function newRound(cards, prevRound) {
-  const pool = cards.filter(k => (k.s || 0) < 2 && (k.term || k.def));
+/**
+ * cfg.ids     only these cards (a partial set); null = whole set
+ * cfg.shuffle pick cards in random order instead of set order
+ * cfg.size    cards per round
+ */
+export function newRound(cards, prevRound, cfg = {}) {
+  const scope = cfg.ids ? cards.filter(k => cfg.ids.includes(k.id)) : cards;
+  const pool = scope.filter(k => (k.s || 0) < 2 && (k.term || k.def));
   if (!pool.length) return { phase: 'done', round: prevRound, queue: [], log: [], total: 0, q: null };
-  const pick = pool.filter(k => k.s === 1).concat(pool.filter(k => !k.s)).slice(0, ROUND);
+  const order = cfg.shuffle ? shuffle : x => x;
+  const pick = order(pool.filter(k => k.s === 1)).concat(order(pool.filter(k => !k.s))).slice(0, cfg.size || ROUND);
   return { phase: 'q', round: prevRound + 1, queue: shuffle(pick.map(k => k.id)), log: [], total: pick.length, q: null };
 }
 
