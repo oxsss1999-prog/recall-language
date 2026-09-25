@@ -10,7 +10,8 @@ const SIZES = [5, 7, 10, 15, 20];
  *   order (set order or shuffled) and round size.
  * The choice is remembered per set on this device.
  */
-export default function StudyOptions({ set, onStart, onCancel }) {
+export default function StudyOptions({ set, onStart, onCancel, mode = 'learn' }) {
+  const listen = mode === 'listen';
   const n = set.cards.length;
   const saved = local.get(`recall.studyopts.${set.id}`, {});
   const [scope, setScope] = useState(saved.scope || 'all');
@@ -59,6 +60,7 @@ export default function StudyOptions({ set, onStart, onCancel }) {
           {opt('range', 'Range')}
           {opt('random', 'Random sample')}
           {opt('unmastered', 'Not yet mastered')}
+
         </div>
         {scope === 'range' && (
           <div className="row inline-inputs">
@@ -88,17 +90,17 @@ export default function StudyOptions({ set, onStart, onCancel }) {
             <button type="button" className="chip" aria-pressed={shuffled} onClick={() => setShuffled(true)}>Shuffled</button>
           </div>
         </div>
-        <div>
+        {!listen && <div>
           <span className="lab">Cards per round</span>
           <div className="chips">
             {SIZES.map(x => <button key={x} type="button" className="chip" aria-pressed={size === x} onClick={() => setSize(x)}>{x}</button>)}
           </div>
-        </div>
+        </div>}
       </div>
 
       <div className="row">
         <button className="btn primary big" type="button" disabled={!preview} onClick={start}>
-          Start · {preview} card{preview === 1 ? '' : 's'}
+          {listen ? 'Start listening' : 'Start'} · {preview} card{preview === 1 ? '' : 's'}
         </button>
         <button className="btn ghost" type="button" onClick={onCancel}>Cancel</button>
       </div>

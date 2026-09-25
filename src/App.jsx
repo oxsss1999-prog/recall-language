@@ -7,6 +7,7 @@ import Library from './components/Library.jsx';
 import SetView from './components/SetView.jsx';
 import Import from './components/Import.jsx';
 import Learn from './components/Learn.jsx';
+import Listen from './components/Listen.jsx';
 import Account from './components/Account.jsx';
 import Privacy from './components/Privacy.jsx';
 import { signOutEverywhere } from './lib/account';
@@ -73,6 +74,8 @@ function Signed({ user, route, go, toast }) {
       return <Import key={route.id || 'new'} target={set} {...props} />;
     case 'account':
       return <Account user={user} sets={sets} go={go} toast={toast} />;
+    case 'listen':
+      return set ? <Listen key={set.id} set={set} {...props} /> : <Library sets={sets} {...props} />;
     case 'learn':
       return set ? <Learn key={set.id} set={set} {...props} /> : <Library sets={sets} {...props} />;
     default:
