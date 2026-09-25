@@ -96,9 +96,16 @@ export default function Listen({ set, go }) {
     if (was) setTimeout(() => play(n), 50);
   }
 
-  // Keep the current card visible in the list.
+  // Keep the current card visible inside the list box only; never scroll the page itself.
+  const listRef = useRef(null);
   useEffect(() => {
-    document.querySelector('.listen-item.on')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const box = listRef.current;
+    const item = box?.querySelector('.listen-item.on');
+    if (!box || !item) return;
+    const top = item.offsetTop; // list is position:relative, so this is relative to the box
+    const bottom = top + item.offsetHeight;
+    if (top < box.scrollTop) box.scrollTo({ top, behavior: 'smooth' });
+    else if (bottom > box.scrollTop + box.clientHeight) box.scrollTo({ top: bottom - box.clientHeight, behavior: 'smooth' });
   }, [idx]);
 
   useEffect(() => () => { run.current++; stop(); wake.current?.release?.().catch(() => {}); }, []);
@@ -179,7 +186,7 @@ export default function Listen({ set, go }) {
         <p className="hint" style={{ margin: 0 }}><kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> previous/next · <kbd>R</kbd> show text. Changes apply from the next card.</p>
       </div>
 
-      <div className="listen-list">
+      <div className="listen-list" ref={listRef}>
         {list.map((k, i) => (
           <button key={k.id} type="button" className={`listen-item ${i === idx ? 'on' : ''}`} onClick={() => jump(i)}>
             <span className="n">{i + 1}</span><span className="t">{k.term}</span>
