@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { local } from '../lib/store';
 import { shuffle } from '../lib/learn';
 import { speak, speakable, stop } from '../lib/speech';
+import SettingsPanel from './SettingsPanel.jsx';
 
 /*
  * Listen mode: a hands-free player that reads the set aloud, card by card.
@@ -41,6 +42,7 @@ export default function Listen({ set, go }) {
   const [rep, setRep] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const run = useRef(0);
   const opts = useRef(o);
   opts.current = o;
@@ -104,19 +106,21 @@ export default function Listen({ set, go }) {
     if (!box || !item) return;
     const top = item.offsetTop; // list is position:relative, so this is relative to the box
     const bottom = top + item.offsetHeight;
-    if (top < box.scrollTop) box.scrollTo({ top, behavior: 'smooth' });
-    else if (bottom > box.scrollTop + box.clientHeight) box.scrollTo({ top: bottom - box.clientHeight, behavior: 'smooth' });
+    // Set scrollTop directly on the list box: this can never move the page.
+    if (top < box.scrollTop) box.scrollTop = top;
+    else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
   }, [idx]);
 
   useEffect(() => () => { run.current++; stop(); wake.current?.release?.().catch(() => {}); }, []);
 
   // Space play/pause · ←/→ previous/next · R reveal
   const live = useRef();
-  live.current = { playing, idx, play, pause, jump };
+  live.current = { playing, idx, play, pause, jump, showSettings };
   useEffect(() => {
     const onKey = e => {
       if (e.target.matches('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
-      const { playing, idx, play, pause, jump } = live.current;
+      const { playing, idx, play, pause, jump, showSettings } = live.current;
+      if (showSettings) return;
       if (e.key === ' ') { e.preventDefault(); playing ? pause() : play(idx); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); jump(idx + 1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); jump(idx - 1); }
@@ -155,9 +159,8 @@ export default function Listen({ set, go }) {
         <div className={`prompt listen-term ${phase === 'term' && playing ? 'reading' : ''}`}>
           {showTerm ? card.term : <button type="button" className="reveal" onClick={() => setRevealed(true)}>Tap or press R to show the text</button>}
         </div>
-        {showDef && card.def && (
-          <div className={`listen-def ${phase === 'def' && playing ? 'reading' : ''}`}>{card.def}</div>
-        )}
+        {/* Always rendered (empty when hidden) so the card keeps the same height. */}
+        <div className={`listen-def ${phase === 'def' && playing ? 'reading' : ''}`}>{showDef ? card.def : ''}</div>
 
         <div className="transport">
           <button type="button" className="tbtn" onClick={() => jump(idx - 1)} aria-label="Previous (←)">
@@ -180,11 +183,14 @@ export default function Listen({ set, go }) {
         <div><span className="lab">Text</span><div className="chips">{chip('show', 'all', 'Show all')}{chip('show', 'term', 'Term only')}{chip('show', 'hidden', 'Hide (blind)')}</div></div>
         <div><span className="lab">Speed</span><div className="chips">{[0.6, 0.75, 0.9, 1, 1.2].map(r => <span key={r}>{chip('rate', r, `${r}×`)}</span>)}</div></div>
         <div className="listen-switches">
+          <button type="button" className="btn small" onClick={() => { pause(); setShowSettings(true); }}>⚙ Voices & volume</button>
           <label className="switch"><input type="checkbox" checked={o.readDef} onChange={e => setOpt({ readDef: e.target.checked })} /> Read the meaning too</label>
           <label className="switch"><input type="checkbox" checked={o.loop} onChange={e => setOpt({ loop: e.target.checked })} /> Loop</label>
         </div>
         <p className="hint" style={{ margin: 0 }}><kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> previous/next · <kbd>R</kbd> show text. Changes apply from the next card.</p>
       </div>
+
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} sample={card?.term} />}
 
       <div className="listen-list" ref={listRef}>
         {list.map((k, i) => (

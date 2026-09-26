@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ACTIONS, DEFAULT_KEYS, PRESETS, keyLabel, normKey, setPrefs, usePrefs } from '../lib/prefs';
 import * as sfx from '../lib/sfx';
-import { speak } from '../lib/speech';
+import { LANGS, getVoiceFor, loadVoices, setVoiceFor, speak, stop, voicesFor } from '../lib/speech';
 
 const RESERVED = ['Escape', 'Tab', 'Backspace', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock'];
 
@@ -10,6 +10,17 @@ export default function SettingsPanel({ onClose, sample }) {
   const prefs = usePrefs();
   const [listening, setListening] = useState(null); // action id waiting for a key
   const [note, setNote] = useState('');
+  const [voiceLists, setVoiceLists] = useState({});
+  const [chosen, setChosen] = useState(() => Object.fromEntries(LANGS.map(l => [l.code, getVoiceFor(l.code)])));
+  useEffect(() => {
+    loadVoices().then(() => setVoiceLists(Object.fromEntries(LANGS.map(l => [l.code, voicesFor(l.code)]))));
+    return () => stop();
+  }, []);
+  const pickVoice = (code, name) => {
+    setVoiceFor(code, name);
+    setChosen(c => ({ ...c, [code]: name }));
+    speak(LANGS.find(l => l.code === code).sample, { voice: name });
+  };
 
   useEffect(() => {
     const onKey = e => {
@@ -45,6 +56,32 @@ export default function SettingsPanel({ onClose, sample }) {
           <h2 id="settingsTitle">Study settings</h2>
           <button className="btn ghost small" type="button" onClick={onClose}>Done</button>
         </div>
+
+        <section className="stack">
+          <span className="lab">Voices</span>
+          {LANGS.map(l => {
+            const list = voiceLists[l.code] || [];
+            const current = list.find(v => v.name === chosen[l.code]) || list[0];
+            return (
+              <div className="voicerow" key={l.code}>
+                <span>{l.label}</span>
+                {list.length ? (
+                  <select value={current?.name || ''} onChange={e => pickVoice(l.code, e.target.value)} aria-label={`${l.label} voice`}>
+                    {list.map((v, i) => (
+                      <option key={v.voiceURI} value={v.name}>{v.name}{i === 0 ? ' — recommended' : ''}</option>
+                    ))}
+                  </select>
+                ) : <span className="hint">No {l.label} voice on this device</span>}
+                <button type="button" className="btn small" disabled={!list.length}
+                  onClick={() => speak(l.sample, { voice: current?.name })} aria-label={`Preview ${l.label} voice`}>▶</button>
+              </div>
+            );
+          })}
+          <p className="hint" style={{ margin: 0 }}>
+            Voices come from your browser and system, so the list differs per device. The most natural ones are usually
+            named “Online (Natural)” (Microsoft Edge), “Google …” (Chrome), or “Enhanced/Premium” (Mac/iPhone).
+          </p>
+        </section>
 
         <section className="stack">
           <span className="lab">Volume</span>

@@ -209,7 +209,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
 
   const settings = (
     <div className="opts-panel">
-      <button type="button" className="btn small" onClick={() => setShowSettings(true)}>⚙ Keys & volume</button>
+      <button type="button" className="btn small" onClick={() => setShowSettings(true)}>⚙ Voices, keys & volume</button>
       <label>Answer with{' '}
         <select value={opts.answerWith} onChange={e => setOpts({ answerWith: e.target.value })}>
           <option value="def">Definition</option>

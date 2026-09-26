@@ -299,3 +299,13 @@ code{font-family:var(--mono);font-size:.9em}
 .listen-list{position:relative;overscroll-behavior:contain}
 .listen-card .listen-term{min-height:3.2em}
 .listen-card .listen-def{min-height:3.2em}
+
+/* Listen: fixed-size text areas so the page never shifts between cards,
+   and no browser scroll-anchoring jumps when content changes. */
+html,body{overflow-anchor:none}
+.listen-card .listen-term{height:6.6em;min-height:0;overflow-y:auto;margin-bottom:12px}
+.listen-card .listen-def{height:5.2em;min-height:0;overflow-y:auto}
+@media (max-width:560px){.listen-card .listen-term{height:8.4em}.listen-card .listen-def{height:6.2em}}
+
+.voicerow{display:grid;grid-template-columns:80px minmax(0,1fr) auto;gap:10px;align-items:center;font-size:14px}
+.voicerow select{min-width:0;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 8px}
