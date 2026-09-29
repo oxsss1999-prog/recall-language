@@ -9,7 +9,7 @@ const LEVEL = ['Not studied', 'Learning', 'Mastered'];
 const LEVEL_COLOR = ['var(--new)', 'var(--mark)', 'var(--accent)'];
 
 /* Uncontrolled auto-growing textarea: live Firestore updates never steal focus. */
-function AutoText({ value, onCommit, className, label, autoFocus }) {
+function AutoText({ value, onCommit, className, label, autoFocus, placeholder }) {
   const ref = useRef();
   const grow = () => { const t = ref.current; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
   useLayoutEffect(grow, []);
@@ -21,6 +21,7 @@ function AutoText({ value, onCommit, className, label, autoFocus }) {
       aria-label={label}
       defaultValue={value}
       autoFocus={autoFocus}
+      placeholder={placeholder}
       onInput={grow}
       onBlur={e => { const v = e.target.value.trim(); if (v !== value) onCommit(v); }}
     />
@@ -96,13 +97,17 @@ export default function SetView({ set, uid, go, toast }) {
         )}
       </div>
 
-      <div className="colhead"><span /><span>Term</span><span>Definition</span><span /></div>
+      <div className="colhead"><span /><span>Term · pinyin</span><span>Definition</span><span /></div>
       <div className="cards">
         {set.cards.map((k, i) => (
           <div className="card" key={k.id}>
             <span className="st" style={{ background: LEVEL_COLOR[k.s || 0] }} title={LEVEL[k.s || 0]} />
-            <AutoText className="term" label={`Term ${i + 1}`} value={k.term}
-              autoFocus={k.id === focusId} onCommit={v => updateCard(k.id, { term: v })} />
+            <div className="term-cell">
+              <AutoText className="term" label={`Term ${i + 1}`} value={k.term}
+                autoFocus={k.id === focusId} onCommit={v => updateCard(k.id, { term: v })} />
+              <AutoText className="hintfield" label={`Pinyin or hint ${i + 1}`} value={k.hint || ''}
+                placeholder="pinyin / hint" onCommit={v => updateCard(k.id, { hint: v })} />
+            </div>
             <AutoText className="def" label={`Definition ${i + 1}`} value={k.def}
               onCommit={v => updateCard(k.id, { def: v })} />
             <div className="card-actions">

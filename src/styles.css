@@ -318,3 +318,11 @@ html,body{overflow-anchor:none}
 .hint-pinyin{font-size:20px;font-weight:500;color:var(--mark);letter-spacing:.02em}
 .hint-cost{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.hint-pinyin{animation:rise-in .25s ease-out}}
+
+/* separate pinyin / hint column */
+.term-cell{display:flex;flex-direction:column;gap:2px;min-width:0}
+.card textarea.hintfield{font-size:13px;color:var(--mark);min-height:26px;padding:2px 6px}
+.card textarea.hintfield::placeholder{color:var(--muted);opacity:.5}
+.pv td.pv-hint{color:var(--mark);font-weight:400;width:22%}
+.listen-pinyin{font-size:18px;color:var(--mark);min-height:1.5em;margin:-4px 0 10px}
+.sum-hint{font-weight:400;color:var(--mark);font-size:12px}

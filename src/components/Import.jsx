@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { local, newCardId, newId, saveSet } from '../lib/store';
-import { parseCards } from '../lib/parse';
+import { COLUMN_LAYOUTS, parseCards } from '../lib/parse';
 
 const PLACEHOLDER = 'Duration\tSensitivity of a bond’s price to changes in interest rates\nYield curve\tPlot of yields across maturities\n베타\t시장 대비 개별 자산의 체계적 위험';
 
@@ -21,7 +21,7 @@ export default function Import({ target, uid, go, toast }) {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [seps, setSepsState] = useState(() => ({
-    termSep: 'tab', termCustom: ' - ', cardSep: 'nl', cardCustom: '\\n\\n', ...local.get('recall.seps', {}),
+    termSep: 'tab', termCustom: ' - ', cardSep: 'nl', cardCustom: '\\n\\n', columns: 'td', ...local.get('recall.seps', {}),
   }));
   const setSeps = patch => setSepsState(s => { const n = { ...s, ...patch }; local.set('recall.seps', n); return n; });
 
@@ -30,7 +30,7 @@ export default function Import({ target, uid, go, toast }) {
   const back = () => (target ? go('set', target.id) : go('library'));
 
   const create = async () => {
-    const cards = rows.map(r => ({ id: newCardId(), term: r.term, def: r.def, s: 0 }));
+    const cards = rows.map(r => ({ id: newCardId(), term: r.term, def: r.def, ...(r.hint ? { hint: r.hint } : {}), s: 0 }));
     if (!cards.length) return;
     try {
       if (target) {
@@ -80,6 +80,11 @@ export default function Import({ target, uid, go, toast }) {
           <p className="hint">Tip: <kbd>Tab</kbd> inserts a tab in this box.</p>
         </div>
 
+        <div>
+          <span className="lab">Columns</span>
+          <Chips value={seps.columns} onChange={v => setSeps({ columns: v })} options={COLUMN_LAYOUTS} />
+          <p className="hint">Pinyin (or any hint) in its own column stays hidden while you answer — press Hint to see it.</p>
+        </div>
         <div className="seps">
           <div>
             <span className="lab">Between term and definition</span>
@@ -112,7 +117,8 @@ export default function Import({ target, uid, go, toast }) {
                     <tr key={i} className={r.bad ? 'warn' : ''}>
                       <td className="n">{i + 1}</td>
                       <td>{r.term}</td>
-                      <td>{r.bad ? 'No separator found on this line' : r.def}</td>
+                      {seps.columns !== 'td' && <td className="pv-hint">{r.hint}</td>}
+                      <td>{r.bad ? (seps.columns === 'td' ? 'No separator found on this line' : 'Needs 3 columns on this line') : r.def}</td>
                     </tr>
                   ))}
                 </tbody>

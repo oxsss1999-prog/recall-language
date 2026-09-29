@@ -41,7 +41,7 @@ export function splitPinyin(text) {
   return { pinyin: found.join(' '), text: rest };
 }
 export const hidePinyin = t => splitPinyin(t).text;
-export const pinyinOf = card => splitPinyin(card.def).pinyin || splitPinyin(card.term).pinyin;
+export const pinyinOf = card => (card.hint || '').trim() || splitPinyin(card.def).pinyin || splitPinyin(card.term).pinyin;
 
 export const promptOf = (card, answerWith) => (answerWith === 'def' ? card.term : card.def);
 export const answerOf = (card, answerWith) => (answerWith === 'def' ? card.def : card.term);

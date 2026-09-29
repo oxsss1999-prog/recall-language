@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { local } from '../lib/store';
-import { shuffle } from '../lib/learn';
+import { pinyinOf, shuffle } from '../lib/learn';
 import { speak, speakable, stop } from '../lib/speech';
 import SettingsPanel from './SettingsPanel.jsx';
 
@@ -159,6 +159,7 @@ export default function Listen({ set, go }) {
         <div className={`prompt listen-term ${phase === 'term' && playing ? 'reading' : ''}`}>
           {showTerm ? card.term : <button type="button" className="reveal" onClick={() => setRevealed(true)}>Tap or press R to show the text</button>}
         </div>
+        <div className="listen-pinyin">{showTerm && card.hint ? card.hint : ''}</div>
         {/* Always rendered (empty when hidden) so the card keeps the same height. */}
         <div className={`listen-def ${phase === 'def' && playing ? 'reading' : ''}`}>{showDef ? card.def : ''}</div>
 

@@ -327,7 +327,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
                 return k && (
                   <div key={i}>
                     <i style={{ color: x.correct ? 'var(--good)' : 'var(--bad)' }}>{x.correct ? '✓' : '✗'}</i>
-                    <b className="with-speak">{k.term}<Speak text={k.term} rate={opts.rate} size="sm" /></b><span>{k.def}</span>
+                    <b className="with-speak">{k.term}{k.hint ? <small className="sum-hint"> {k.hint}</small> : null}<Speak text={k.term} rate={opts.rate} size="sm" /></b><span>{k.def}</span>
                   </div>
                 );
               })}
@@ -394,7 +394,8 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
           <div className="prompt">{shown(promptOf(card, opts.answerWith)) || <em>(blank)</em>}</div>
           <Speak text={promptOf(card, opts.answerWith)} rate={opts.rate} size="lg" />
         </div>
-        {opts.hidePinyin && hint && !fb && (
+        {fb && hint && <div className="hint-row"><span className="hint-pinyin">{hint}</span></div>}
+        {hint && !fb && (card.hint || opts.hidePinyin) && (
           <div className="hint-row">
             {q.hint
               ? <span className="hint-pinyin">{hint}</span>
