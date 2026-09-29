@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { counts, local, saveSet } from '../lib/store';
-import { advance, answerOf, newRound, normalize, promptOf } from '../lib/learn';
+import { advance, answerOf, hidePinyin, newRound, normalize, pinyinOf, promptOf } from '../lib/learn';
 import { MasteryBar } from './MasteryBar.jsx';
 import Speak from './Speak.jsx';
 import { chineseVoices, getVoicePref, loadVoices, setVoicePref, speak, stop, supported as ttsSupported } from '../lib/speech';
@@ -14,6 +14,7 @@ import { actionFor, keyLabel, usePrefs } from '../lib/prefs';
 /* ---------- game tuning ---------- */
 const XP_BASE = 10;
 const XP_COMBO_BONUS = 5;          // extra per answer once the combo reaches 5
+const XP_WITH_HINT = 5;            // a hinted answer still counts, for less
 const isMilestone = n => n === 5 || (n >= 10 && n % 10 === 0);
 const CHEERS = {
   5: ['Five in a row!', 'Nice rhythm.'],
@@ -26,7 +27,7 @@ const cheer = n => CHEERS[n] || [`${n} in a row!`, 'Legendary run.'];
 export default function Learn({ set: initial, uid, go, toast }) {
   // The session works on its own copy of the set and writes progress back after every answer.
   const [set, setSet] = useState(() => structuredClone(initial));
-  const [opts, setOptsState] = useState(() => ({ answerWith: 'def', written: true, autoplay: true, rate: 0.9, sound: true, ...local.get('recall.learn', {}) }));
+  const [opts, setOptsState] = useState(() => ({ answerWith: 'def', written: true, autoplay: true, rate: 0.9, sound: true, hidePinyin: true, ...local.get('recall.learn', {}) }));
   // Study options chosen on the set page (partial set, shuffle, round size).
   const [cfg] = useState(() => local.get(`recall.session.${initial.id}`, {}));
   const [s, setS] = useState(() => advance(newRound(initial.cards, 0, cfg), initial.cards, opts));
@@ -64,8 +65,8 @@ export default function Learn({ set: initial, uid, go, toast }) {
   const next = (state = s, cs = cards) => { setDraft(''); setCelebrate(null); setS(advance(state, cs, opts)); };
   const nextRound = (cs = cards, round = s.round) => { setDraft(''); setCelebrate(null); setS(advance(newRound(cs, round, cfg), cs, opts)); };
 
-  const reward = (newCombo) => {
-    const gain = XP_BASE + (newCombo >= 5 ? XP_COMBO_BONUS : 0);
+  const reward = (newCombo, hinted = false) => {
+    const gain = hinted ? XP_WITH_HINT : XP_BASE + (newCombo >= 5 ? XP_COMBO_BONUS : 0);
     pendingXp.current += gain;
     bestRef.current = Math.max(bestRef.current, newCombo);
     setBestCombo(bestRef.current);
@@ -90,7 +91,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
     if (correct) {
       const n = combo + 1;
       setCombo(n);
-      gain = reward(n);
+      gain = reward(n, !!s.q.hint);
     } else {
       setCombo(0);
       if (opts.sound) sfx.wrong();
@@ -107,10 +108,12 @@ export default function Learn({ set: initial, uid, go, toast }) {
     const cs = setLevel(s.q.cardId, Math.min(2, s.q.prevS + 1));
     const n = (s.q.comboBefore || 0) + 1;
     setCombo(n);
-    const gain = reward(n);
+    const gain = reward(n, !!s.q.hint);
     const log = s.log.map((x, i) => (i === s.log.length - 1 ? { ...x, correct: true, gain } : x));
     next({ ...s, log }, cs);
   };
+
+  const showHint = () => { if (s.phase === 'q' && !s.q.hint) setS({ ...s, q: { ...s.q, hint: true } }); };
 
   const setOpts = patch => {
     const o = { ...opts, ...patch };
@@ -169,10 +172,10 @@ export default function Learn({ set: initial, uid, go, toast }) {
 
   // Keyboard shortcuts (customizable in Study settings).
   const live = useRef();
-  live.current = { s, card, grade, next, opts, nextRound, showSettings };
+  live.current = { s, card, grade, next, opts, nextRound, showSettings, showHint };
   useEffect(() => {
     const onKey = e => {
-      const { s, card, grade, next, opts, nextRound, showSettings } = live.current;
+      const { s, card, grade, next, opts, nextRound, showSettings, showHint } = live.current;
       if (showSettings) return;
       if (e.target.matches('input, textarea, select')) return;
       // Leave browser/OS shortcuts alone (Cmd+1 tab switching, Ctrl+S, etc.).
@@ -184,6 +187,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
       if (action === 'listen' && card && inQuestion) {
         e.preventDefault(); speak(promptOf(card, opts.answerWith), { rate: opts.rate }); return;
       }
+      if (action === 'hint' && s.phase === 'q') { e.preventDefault(); showHint(); return; }
       if (s.phase === 'q' && s.q.type === 'mc') {
         const idx = ['opt1', 'opt2', 'opt3', 'opt4'].indexOf(action);
         if (idx >= 0 && s.q.options[idx] !== undefined) {
@@ -218,6 +222,9 @@ export default function Learn({ set: initial, uid, go, toast }) {
       </label>
       <label className="switch">
         <input type="checkbox" checked={opts.written} onChange={e => setOpts({ written: e.target.checked })} /> Written questions
+      </label>
+      <label className="switch">
+        <input type="checkbox" checked={opts.hidePinyin} onChange={e => setOpts({ hidePinyin: e.target.checked })} /> Hide pinyin (use Hint)
       </label>
       <label className="switch">
         <input type="checkbox" checked={opts.sound} onChange={e => setOpts({ sound: e.target.checked })} /> Sound effects
@@ -336,7 +343,7 @@ export default function Learn({ set: initial, uid, go, toast }) {
           q={s.q} card={card} opts={opts} fb={s.phase === 'fb'}
           draft={draft} setDraft={setDraft}
           grade={grade} next={() => next()} override={override}
-          settings={settings} keys={prefs.keys}
+          settings={settings} keys={prefs.keys} showHint={showHint}
         />
       )}
     </>
@@ -362,13 +369,17 @@ function CountUp({ to, ms = 700 }) {
 
 const PRAISE = ['Correct!', 'Nice!', 'Great!', 'Nailed it!', 'Exactly!'];
 
-function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, settings, keys }) {
+function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, settings, keys, showHint }) {
   const right = answerOf(card, opts.answerWith);
+  // While answering, pinyin in brackets is hidden so it can't give the answer away.
+  const hide = opts.hidePinyin && !fb;
+  const shown = t => (hide ? hidePinyin(t) : t);
+  const hint = pinyinOf(card);
   const [praise] = useState(() => PRAISE[(Math.random() * PRAISE.length) | 0]);
   const submit = e => {
     e.preventDefault();
     const v = draft.trim();
-    if (v) grade(normalize(v) === normalize(right), v);
+    if (v) grade(normalize(v) === normalize(right) || normalize(v) === normalize(hidePinyin(right)), v);
   };
 
   return (
@@ -380,9 +391,20 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
           <span className="qtag">{q.type === 'mc' ? 'Multiple choice' : 'Written'}</span>
         </div>
         <div className="prompt-row">
-          <div className="prompt">{promptOf(card, opts.answerWith) || <em>(blank)</em>}</div>
+          <div className="prompt">{shown(promptOf(card, opts.answerWith)) || <em>(blank)</em>}</div>
           <Speak text={promptOf(card, opts.answerWith)} rate={opts.rate} size="lg" />
         </div>
+        {opts.hidePinyin && hint && !fb && (
+          <div className="hint-row">
+            {q.hint
+              ? <span className="hint-pinyin">{hint}</span>
+              : <button type="button" className="hint-btn" onClick={showHint}>
+                  <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+                  Hint <kbd>{keyLabel(keys.hint || 'h')}</kbd>
+                </button>}
+            {q.hint && <span className="hint-cost">hint used · {XP_WITH_HINT} XP</span>}
+          </div>
+        )}
 
         {q.type === 'mc' && (
           <div className="opts">
@@ -391,7 +413,7 @@ function Question({ q, card, opts, fb, draft, setDraft, grade, next, override, s
               return (
                 <button key={i} type="button" className={`opt ${cls}`} disabled={fb}
                   onClick={() => grade(normalize(o) === normalize(right), o)}>
-                  <span className="k">{keyLabel(keys[`opt${i + 1}`] || String(i + 1))}</span><span>{o || <em>(blank)</em>}</span>
+                  <span className="k">{keyLabel(keys[`opt${i + 1}`] || String(i + 1))}</span><span>{shown(o) || <em>(blank)</em>}</span>
                 </button>
               );
             })}

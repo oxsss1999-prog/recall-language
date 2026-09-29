@@ -13,13 +13,14 @@ export const ACTIONS = [
   { id: 'listen', label: 'Play pronunciation' },
   { id: 'next', label: 'Continue / next' },
   { id: 'dontKnow', label: 'I don’t know (multiple choice)' },
+  { id: 'hint', label: 'Show hint (pinyin)' },
 ];
 
-export const DEFAULT_KEYS = { opt1: '1', opt2: '2', opt3: '3', opt4: '4', listen: 's', next: 'Enter', dontKnow: '0' };
+export const DEFAULT_KEYS = { opt1: '1', opt2: '2', opt3: '3', opt4: '4', listen: 's', next: 'Enter', dontKnow: '0', hint: 'h' };
 export const PRESETS = {
   Numbers: DEFAULT_KEYS,
-  'Left hand (A S D F)': { opt1: 'a', opt2: 's', opt3: 'd', opt4: 'f', listen: 'e', next: ' ', dontKnow: 'q' },
-  'Right hand (J K L ;)': { opt1: 'j', opt2: 'k', opt3: 'l', opt4: ';', listen: 'i', next: 'Enter', dontKnow: 'p' },
+  'Left hand (A S D F)': { opt1: 'a', opt2: 's', opt3: 'd', opt4: 'f', listen: 'e', next: ' ', dontKnow: 'q', hint: 'w' },
+  'Right hand (J K L ;)': { opt1: 'j', opt2: 'k', opt3: 'l', opt4: ';', listen: 'i', next: 'Enter', dontKnow: 'p', hint: 'o' },
 };
 
 const DEFAULTS = { keys: DEFAULT_KEYS, sfxVolume: 0.7, voiceVolume: 1 };

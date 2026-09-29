@@ -309,3 +309,12 @@ html,body{overflow-anchor:none}
 
 .voicerow{display:grid;grid-template-columns:80px minmax(0,1fr) auto;gap:10px;align-items:center;font-size:14px}
 .voicerow select{min-width:0;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 8px}
+
+/* pinyin hint */
+.hint-row{display:flex;align-items:center;gap:12px;margin:-14px 0 22px;min-height:34px}
+.hint-btn{display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--line);background:none;color:var(--muted);border-radius:99px;padding:6px 12px;cursor:pointer;font-size:13px}
+.hint-btn:hover{border-color:var(--mark);color:var(--ink);background:var(--mark-soft)}
+.hint-btn kbd{font-size:10px;padding:0 4px}
+.hint-pinyin{font-size:20px;font-weight:500;color:var(--mark);letter-spacing:.02em}
+.hint-cost{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.hint-pinyin{animation:rise-in .25s ease-out}}

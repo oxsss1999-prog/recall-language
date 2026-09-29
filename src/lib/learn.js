@@ -25,6 +25,24 @@ export const normalize = s =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/*
+ * Pinyin written inside brackets, e.g. "[bǎozhèng] to guarantee (HSK 4)".
+ * A bracket counts as pinyin only if it has tone marks and no Chinese/Korean,
+ * so notes like "[Vocab]" or "[Frame 2: hé 누구 …]" are left alone.
+ */
+const TONE = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüÜĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙ]/;
+const CJK_OR_HANGUL = /[\u3400-\u9FFF\uAC00-\uD7A3]/;
+export function splitPinyin(text) {
+  const found = [];
+  const rest = String(text || '').replace(/[\[【]([^\]】]{1,80})[\]】]/g, (m, inner) => {
+    if (TONE.test(inner) && !CJK_OR_HANGUL.test(inner)) { found.push(inner.trim()); return ''; }
+    return m;
+  }).replace(/\s{2,}/g, ' ').trim();
+  return { pinyin: found.join(' '), text: rest };
+}
+export const hidePinyin = t => splitPinyin(t).text;
+export const pinyinOf = card => splitPinyin(card.def).pinyin || splitPinyin(card.term).pinyin;
+
 export const promptOf = (card, answerWith) => (answerWith === 'def' ? card.term : card.def);
 export const answerOf = (card, answerWith) => (answerWith === 'def' ? card.def : card.term);
 
