@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { local } from '../lib/store';
-import { pinyinOf, shuffle } from '../lib/learn';
+import { hidePinyin, pinyinOf, shuffle } from '../lib/learn';
 import { speak, speakable, stop } from '../lib/speech';
 import SettingsPanel from './SettingsPanel.jsx';
 
@@ -12,7 +12,12 @@ import SettingsPanel from './SettingsPanel.jsx';
 const DEFAULTS = { repeat: 2, gap: 2, readDef: false, show: 'all', loop: true, rate: 0.9 };
 
 /** The first readable part of a definition: "I like shopping. | [Frame 2 …]" → "I like shopping." */
-const meaningOf = def => String(def || '').split(/\s\|\s|\[/)[0].trim();
+const meaningOf = def => {
+  // Drop bracketed pinyin first ("[bǎozhèng] to guarantee" → "to guarantee"),
+  // then keep the first non-empty part before any " | " or "[note]".
+  const parts = hidePinyin(def).split(/\s\|\s|\[[^\]]*\]/).map(x => x.trim()).filter(Boolean);
+  return (parts[0] || '').replace(/\(HSK\s*\d+\)/gi, '').trim(); // don't read level tags aloud
+};
 
 /** Speak and resolve when finished (with a safety timeout if the browser never reports the end). */
 function say(text, rate) {
